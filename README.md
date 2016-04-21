@@ -28,9 +28,9 @@ This enables you to use `TDataConnection` in the initialization code and `TQuery
 
 ## Implementations
 
-* ADODB: //TODO:
+* ADODB: https://github.com/stijnsanders/DataLank/blob/master/ADOTools.pas
 * SQLite: https://github.com/stijnsanders/TSQLite
-* PostgreSQL: //TODO
+* PostgreSQL: https://github.com/stijnsanders/DataLank/blob/master/LibPQData.pas
 * (more? feel free to give it a try and post a pull request!)
 
 ## Why 'Data Lank'

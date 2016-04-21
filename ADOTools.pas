@@ -1,4 +1,11 @@
 unit ADOTools;
+{
+
+  ADOTools: thin ADODB wrapper.
+
+  https://github.com/stijnsanders/DataLank
+
+}
 
 interface
 
