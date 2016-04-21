@@ -83,6 +83,7 @@ const
   Oid_int8 = 20; //~18 digit integer, 8-byte storage
   Oid_int2 = 21; //-32 thousand to 32 thousand, 2-byte storage
   Oid_int4 = 23; //-2 billion to 2 billion integer, 4-byte storage
+  Oid_text = 25;
   Oid_xml = 142; //XML content
   Oid_float4 = 700; //single-precision floating point number, 4-byte storage
   Oid_float8 = 701; //double-precision floating point number, 8-byte storage
@@ -108,7 +109,7 @@ begin
   case VarType(v) of
     varEmpty,varNull:
      begin
-      vt:=Oid_varchar;//?
+      vt:=Oid_varchar;//?Oid_text?
       vs:='';
       vv:=nil;
       vl:=0;
@@ -200,7 +201,7 @@ begin
      end;
     varOleStr,varString:
      begin
-      vt:=Oid_varchar;//?
+      vt:=Oid_varchar;//?Oid_text?
       vs:=UTF8Encode(VarToWideStr(v));
       vv:=@vs[1];
       vl:=Length(vs);
@@ -645,12 +646,15 @@ begin
           rds^:=ods;
         end;
        end;
-      Oid_varchar:Result:=UTF8ToWideString(s);
+      Oid_varchar,Oid_text:Result:=UTF8ToWideString(s);
       //Oid_date
       //Oid_time
       Oid_timestamp:Result:=GetDate(Idx);
       //Oid_timestamptz
       //Oid_uuid
+      else
+        raise EQueryResultError.Create('Unsupported result type oid='+
+          IntToStr(PQftype(FRecordset,i))+': '+VarToStr(Idx));
     end;
    end
   else
