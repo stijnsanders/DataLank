@@ -29,21 +29,22 @@ Then in the application write code like this:
       qr:TQueryResult;
       s:string;
     begin
+	  //this is normally done on application start-up:
       db:=TDataConnection.Create('host=...');
 
+	  //assemble a unique key just to on the safe side
+	  //(a fixed string may work just as well)
       s:=Format('c%.8x%.8x%.8x',
         [GetCurrentProcessId,GetCurrentThreadId,GetTickCount]);
 
-      db.Perform('begin',[]);
+      //start the transaction
+	  db.Perform('begin',[]);
       try
-        qr:=TQueryResult.Create(db,'select TestCursorFunc($1)',[RefCursor(s)]);
-        try
-          qr.Read;
-        finally
-          qr.Free;
-        end;
+	    //start the cursor
+        db.Perform('select TestCursorFunc($1)',[RefCursor(s)]);
 
-        qr:=TQueryResult.Create(db,'fetch all "'+s+'"',[]);
+        //consume the cursor
+		qr:=TQueryResult.Create(db,'fetch all "'+s+'"',[]);
         try
           while qr.Read do
            begin
@@ -53,6 +54,7 @@ Then in the application write code like this:
           qr.Free;
         end;
 
+		//safely close the transaction
         db.Perform('commit',[]);
       except
         db.Perform('rollback',[]);
