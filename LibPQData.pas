@@ -38,10 +38,11 @@ type
     procedure BeginTrans;
     procedure CommitTrans;
     procedure RollbackTrans;
-    function Perform(const SQL: WideString;
+    function Execute(const SQL: WideString;
       const Values: array of OleVariant): integer;
     function Insert(const TableName: WideString;
-      const Values: array of OleVariant): integer;
+      const Values: array of OleVariant;
+      const PKFieldName:string=''): integer;
   end;
 
   TPostgresCommand=class(TObject)
@@ -375,7 +376,7 @@ begin
   Exec('rollback');
 end;
 
-function TPostgresConnection.Perform(const SQL: WideString;
+function TPostgresConnection.Execute(const SQL: WideString;
   const Values: array of OleVariant): integer;
 var
   r:PGResult;
@@ -412,7 +413,7 @@ begin
 end;
 
 function TPostgresConnection.Insert(const TableName: WideString;
-  const Values: array of OleVariant): integer;
+  const Values: array of OleVariant; const PKFieldName:string=''): integer;
 var
   r:PGResult;
   i,l:integer;
@@ -428,7 +429,7 @@ begin
   sql2:='';
   l:=Length(Values);
   if (l and 1)<>0 then
-    raise EQueryResultError.Create('Perform('''+string(TableName)+''') requires an even number of values');
+    raise EQueryResultError.Create('Insert('''+string(TableName)+''') requires an even number of values');
 
   pn:=l div 2;
   SetLength(pt,pn);
@@ -453,7 +454,10 @@ begin
 
   sql1[1]:='(';
   sql2[1]:='(';
-  if (l<>0) and (Values[0]='Nr') then sql2:=sql2+')' else sql2:=sql2+') returning id';
+  if PKFieldName='' then
+    sql2:=sql2+')'
+  else
+    sql2:=sql2+') returning '+PKFieldName;
 
   sql1:='insert into '+TableName+' '+sql1+') values '+sql2;
   if PQsendQueryParams(FDB,@sql1[1],pn,@pt[0],@pv[0],@pl[0],@pf[0],0)=0 then

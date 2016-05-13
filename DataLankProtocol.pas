@@ -38,7 +38,7 @@ type
     constructor Create(const ConnectionInfo: WideString);
     destructor Destroy override;
 
-    function Perform(const SQL: WideString;
+    function Execute(const SQL: WideString;
       const Values: array of Variant): integer;
     function Insert(const TableName: WideString;
       const Values: array of Variant): integer;
@@ -87,11 +87,11 @@ begin
   //catch primary key and/or auto-number
 end;
 
-function TDataConnection.Perform(const SQL: WideString;
+function TDataConnection.Execute(const SQL: WideString;
   const Values: array of Variant): integer;
 begin
   //prepare command and parameters
-  //perform SQL
+  //execute SQL
 end;
 { TQueryResult }
 

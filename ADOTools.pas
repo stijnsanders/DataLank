@@ -20,7 +20,7 @@ type
     destructor Destroy; override;
     function SingleValue(const SQL: WideString;
       const Values: array of Variant): Variant;
-    function Perform(const SQL: WideString;
+    function Execute(const SQL: WideString;
       const Values: array of Variant): integer;
     function Insert(const TableName: WideString;
       const Values: array of Variant): integer;
@@ -291,7 +291,7 @@ begin
   end;
 end;
 
-function TADOLink.Perform(const SQL: WideString;
+function TADOLink.Execute(const SQL: WideString;
   const Values: array of Variant): integer;
 var
   cmd:Command;
