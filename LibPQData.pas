@@ -72,29 +72,47 @@ type
   EPostgres=class(Exception);
   EQueryResultError=class(Exception);
 
+function RefCursor(const CursorName:WideString):OleVariant;
+
 implementation
 
 uses Variants;
 
-//Postgres hardcoded object ID's
+//hardcoded object ID's (defined by \include\server\catalog\pg_type.h)
 const
   Oid_bool = 16; //boolean, 'true'/'false'
   Oid_bytea = 17; //variable-length string, binary values escaped
   Oid_int8 = 20; //~18 digit integer, 8-byte storage
   Oid_int2 = 21; //-32 thousand to 32 thousand, 2-byte storage
   Oid_int4 = 23; //-2 billion to 2 billion integer, 4-byte storage
-  Oid_text = 25;
+  Oid_text = 25; //variable-length string, no limit specified
   Oid_xml = 142; //XML content
   Oid_float4 = 700; //single-precision floating point number, 4-byte storage
   Oid_float8 = 701; //double-precision floating point number, 8-byte storage
+  Oid_unknown = 705; //(used with varNull below)
   Oid_money = 790; //monetary amounts, $d,ddd.cc
+  Oid_bpchar = 1042; //char(length), blank-padded string, fixed storage length
   Oid_varchar = 1043; //varchar(length), non-blank-padded string, variable storage length
   Oid_date = 1082; //date
   Oid_time = 1083; //time of day
   Oid_timestamp = 1114; //date and time
   Oid_timestamptz = 1184; //date and time with time zone
   Oid_numeric = 1700; //numeric(precision, decimal), arbitrary precision number
+  Oid_refcursor = 1790; //reference to cursor (portal name)
   Oid_uuid = 2950; //UUID datatype
+
+var
+  RefCursorCatch:OleVariant;//see initialization
+
+function RefCursor(const CursorName:WideString):OleVariant;
+begin
+  //assert: caller does transaction!
+  //package a bespoke array with a reference to secret fixed thing,
+  //see AddParam that check this when VarType=varArray or varVariant
+  Result:=VarArrayCreate([0,1],varVariant);
+  Result[0]:=VarArrayRef(RefCursorCatch);
+  Result[1]:=CursorName;
+end;
 
 function AddParam(const v: OleVariant; var vt: Oid; var vs: UTF8String;
   var vv: pointer; var vl: integer; var vf: integer): boolean;
@@ -109,7 +127,7 @@ begin
   case VarType(v) of
     varEmpty,varNull:
      begin
-      vt:=Oid_varchar;//?Oid_text?
+      vt:=Oid_unknown;
       vs:='';
       vv:=nil;
       vl:=0;
@@ -240,6 +258,18 @@ begin
     //varUStrArg?
     //varAny?
     //varUString?
+    varArray or varVariant:
+      if (VarArrayLowBound(v,1)=0) and (VarArrayHighBound(v,1)=1)
+        and (TVarData(v[0]).VPointer=@TVarData(RefCursorCatch).VArray) then
+       begin
+        vt:=Oid_refcursor;
+        vs:=UTF8Encode(VarToWideStr(v[1]));
+        vv:=@vs[1];
+        vl:=Length(vs);
+        vf:=0;
+       end
+      else
+        Result:=false;
     else
       Result:=false;
   end;
@@ -366,9 +396,10 @@ begin
   while r.Handle<>nil do
    begin
     s:=PQcmdTuples(r);
-    if TryStrToInt(string(s),i) then inc(Result,i) else
-      raise EPostgres.Create('Unexpected Tuples Response: "'+
-        UTF8ToWideString(s)+'"');
+    if s<>'' then
+      if TryStrToInt(string(s),i) then inc(Result,i) else
+        raise EPostgres.Create('Unexpected Tuples Response: "'+
+          UTF8ToWideString(s)+'"');
     PQclear(r);
     r:=PQgetResult(FDB);
     if r.Handle<>nil then
@@ -646,7 +677,7 @@ begin
           rds^:=ods;
         end;
        end;
-      Oid_varchar,Oid_text:Result:=UTF8ToWideString(s);
+      Oid_bpchar,Oid_varchar,Oid_text:Result:=UTF8ToWideString(s);
       //Oid_date
       //Oid_time
       Oid_timestamp:Result:=GetDate(Idx);
@@ -686,4 +717,7 @@ begin
   if FRecordSet.Handle=nil then Result:=-1 else Result:=PQntuples(FRecordSet);
 end;
 
+initialization
+  //something fixed invalid, see function RefCursor
+  RefCursorCatch:=VarArrayCreate([0,0],varError);
 end.
