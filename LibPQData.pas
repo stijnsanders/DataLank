@@ -123,6 +123,8 @@ var
   ods:Char;
   rds:PChar;
   d:TDateTime;
+const
+  NullStr:AnsiString=#0;  
 begin
   rds:=@{$IFDEF DELPHIXE_UP}FormatSettings.{$ENDIF}DecimalSeparator;
   Result:=true;//default
@@ -224,7 +226,7 @@ begin
      begin
       vt:=Oid_varchar;//?Oid_text?
       vs:=UTF8Encode(VarToWideStr(v));
-      vv:=@vs[1];
+      if vs='' then vv:=@NullStr[1] else vv:=@vs[1];
       vl:=Length(vs);
       vf:=0;
      end;
@@ -470,6 +472,7 @@ begin
        begin
         PQclear(r);
         r:=PQgetResult(FDB);
+       end;
       raise;
      end;
   end;
@@ -506,7 +509,7 @@ begin
    begin
     if not VarIsNull(Values[i]) then
      begin
-      sql1:=sql1+',"'+UTF8Encode(VarToWideStr(Values[i-1]))+'"';
+      sql1:=sql1+','+UTF8Encode(VarToWideStr(Values[i-1]));
       if not AddParam(Values[i],pt[pn],ps[pn],pv[pn],pl[pn],pf[pn]) then
         raise Exception.Create('Unsupported Parameter Type: TableName="'+string(TableName)+'" #'+IntToStr((i div 2)+1));
       inc(pn);
@@ -515,6 +518,8 @@ begin
     inc(i,2);
    end;
 
+  //TODO: check TableName,Values[i*2] on sql-safe!
+
   sql1[1]:='(';
   sql2[1]:='(';
   if PKFieldName='' then
@@ -522,7 +527,7 @@ begin
   else
     sql2:=sql2+') returning '+PKFieldName;
 
-  sql1:='insert into "'+TableName+'" '+sql1+') values '+sql2;
+  sql1:='insert into '+TableName+' '+sql1+') values '+sql2;
   if PQsendQueryParams(FDB,@sql1[1],pn,@pt[0],@pv[0],@pl[0],@pf[0],0)=0 then
     raise EPostgres.Create(UTF8ToWideString(PQerrorMessage(FDB)));
 
