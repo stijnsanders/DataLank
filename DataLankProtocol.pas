@@ -42,6 +42,10 @@ type
       const Values: array of Variant): integer;
     function Insert(const TableName: WideString;
       const Values: array of Variant): integer;
+
+    procedure BeginTrans;
+    procedure CommitTrans;
+    procedure RollbackTrans;
   end;
 
   TQueryResult=class(TObject)
@@ -93,6 +97,22 @@ begin
   //prepare command and parameters
   //execute SQL
 end;
+
+procedure TDataConnection.BeginTrans;
+begin
+  Execute('BEGIN TRANSACTION',[]);
+end;
+
+procedure TDataConnection.CommitTrans;
+begin
+  Execute('COMMIT TRANSACTION',[]);
+end;
+
+procedure TDataConnection.RollbackTrans;
+begin
+  Execute('ROLLBACK TRANSACTION',[]);
+end;
+
 { TQueryResult }
 
 constructor TQueryResult.Create(Connection: TDataConnection;

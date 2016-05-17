@@ -25,6 +25,8 @@ interface
 {$D-}
 {$L-}
 
+{$DEFINE LIBPQDATA_TRANSFORMQM}
+
 uses SysUtils, LibPQ;
 
 type
@@ -283,6 +285,55 @@ begin
 end;
 {$IFEND}
 
+function PrepSQL(const SQL: UTF8String): PAnsiChar;
+var
+  s:string;
+  i,j,k,l:integer;
+begin
+{$IFDEF LIBPQDATA_TRANSFORMQM}
+  i:=1;
+  j:=1;
+  k:=0;
+  l:=Length(SQL);
+  SetLength(s,l*2);
+  while (i<=l) do
+   begin
+    while (i<=l) and (SQL[i]<>'?') do
+     begin
+      s[j]:=SQL[i];
+      inc(i);
+      inc(j);
+     end;
+    if i<=l then
+     begin
+      s[j]:='$';
+      inc(i);
+      inc(j);
+      inc(k);
+      if k<10 then
+       begin
+        s[j]:=AnsiChar(k or $30);
+        inc(j);
+       end
+      else
+      if k<100 then
+       begin
+        s[j]:=AnsiChar((k div 10) or $30);
+        inc(j);
+        s[j]:=AnsiChar((k mod 10) or $30);
+        inc(j);
+       end
+      else
+        raise EPostgres.Create('Maximum number of question marks exceeded');
+     end;
+   end;
+  SetLength(s,j-1);
+  Result:=@s[1];
+{$ELSE}
+  Result:=@SQL[1];
+{$ENDIF}
+end;
+
 procedure SendQuery(DB: PGConn; const SQL: UTF8String;
   const Values: array of OleVariant);
 var
@@ -297,7 +348,7 @@ begin
   pn:=Length(Values);
   if pn=0 then
    begin
-    if PQsendQuery(DB,@SQL[1])=0 then
+    if PQsendQuery(DB,PrepSQL(SQL))=0 then
       raise EPostgres.Create(UTF8ToWideString(PQerrorMessage(DB)));
    end
   else
@@ -312,7 +363,7 @@ begin
       if not AddParam(Values[i],pt[i],ps[i],pv[i],pl[i],pf[i]) then
         raise Exception.Create('Unsupported Parameter Type: #'+IntToStr(i+1));
 
-    if PQsendQueryParams(DB,@SQL[1],pn,@pt[0],@pv[0],@pl[0],@pf[0],0)=0 then
+    if PQsendQueryParams(DB,PrepSQL(SQL),pn,@pt[0],@pv[0],@pl[0],@pf[0],0)=0 then
       raise EPostgres.Create(UTF8ToWideString(PQerrorMessage(DB)));
    end;
 end;
@@ -383,33 +434,45 @@ var
   s,e:UTF8String;
   i:integer;
 begin
-  SendQuery(FDB,UTF8Encode(SQL),Values);
+  try
+    SendQuery(FDB,UTF8Encode(SQL),Values);
 
-  Result:=0;//see below
-  r:=PQgetResult(FDB);
-  if r.Handle=nil then
-    e:=PQerrorMessage(FDB)
-  else
-    e:=PQresultErrorMessage(r);
-  if e<>'' then
-    raise EPostgres.Create(UTF8ToWideString(e));
-
-  while r.Handle<>nil do
-   begin
-    s:=PQcmdTuples(r);
-    if s<>'' then
-      if TryStrToInt(string(s),i) then inc(Result,i) else
-        raise EPostgres.Create('Unexpected Tuples Response: "'+
-          UTF8ToWideString(s)+'"');
-    PQclear(r);
+    Result:=0;//see below
     r:=PQgetResult(FDB);
-    if r.Handle<>nil then
-     begin
+    if r.Handle=nil then
+      e:=PQerrorMessage(FDB)
+    else
       e:=PQresultErrorMessage(r);
-      if e<>'' then
-        raise EPostgres.Create(UTF8ToWideString(e));
+    if e<>'' then
+      raise EPostgres.Create(UTF8ToWideString(e));
+
+    while r.Handle<>nil do
+     begin
+      s:=PQcmdTuples(r);
+      if s<>'' then
+        if TryStrToInt(string(s),i) then inc(Result,i) else
+          raise EPostgres.Create('Unexpected Tuples Response: "'+
+            UTF8ToWideString(s)+'"');
+      PQclear(r);
+      r:=PQgetResult(FDB);
+      if r.Handle<>nil then
+       begin
+        e:=PQresultErrorMessage(r);
+        if e<>'' then
+          raise EPostgres.Create(UTF8ToWideString(e));
+       end;
      end;
-   end;
+  except
+    on e:Exception do
+     begin
+      r:=PQgetResult(FDB);
+      while r.Handle<>nil do
+       begin
+        PQclear(r);
+        r:=PQgetResult(FDB);
+      raise;
+     end;
+  end;
 end;
 
 function TPostgresConnection.Insert(const TableName: WideString;
@@ -443,7 +506,7 @@ begin
    begin
     if not VarIsNull(Values[i]) then
      begin
-      sql1:=sql1+','+UTF8Encode(VarToWideStr(Values[i-1]));
+      sql1:=sql1+',"'+UTF8Encode(VarToWideStr(Values[i-1]))+'"';
       if not AddParam(Values[i],pt[pn],ps[pn],pv[pn],pl[pn],pf[pn]) then
         raise Exception.Create('Unsupported Parameter Type: TableName="'+string(TableName)+'" #'+IntToStr((i div 2)+1));
       inc(pn);
@@ -459,7 +522,7 @@ begin
   else
     sql2:=sql2+') returning '+PKFieldName;
 
-  sql1:='insert into '+TableName+' '+sql1+') values '+sql2;
+  sql1:='insert into "'+TableName+'" '+sql1+') values '+sql2;
   if PQsendQueryParams(FDB,@sql1[1],pn,@pt[0],@pv[0],@pl[0],@pf[0],0)=0 then
     raise EPostgres.Create(UTF8ToWideString(PQerrorMessage(FDB)));
 
@@ -482,20 +545,31 @@ constructor TPostgresCommand.Create(Connection: TPostgresConnection;
   const SQL: WideString; const Values: array of OleVariant);
 var
   e:UTF8String;
+  r:PGResult;
 begin
   inherited Create;
-  FDB:=Connection.FDB;
-  SendQuery(FDB,UTF8Encode(SQL),Values);
-  //PQsetSingleRowMode(QueryDbConLive); //TODO!!
-  FTuple:=0;
-  FRecordSet:=PQgetResult(FDB);
-  if FRecordSet.Handle=nil then
-    e:=PQerrorMessage(FDB)
-  else
-    e:=PQresultErrorMessage(FRecordSet);
-  if e<>'' then
-    raise EPostgres.Create(UTF8ToWideString(e));
-  FFirstRead:=true;
+  //TODO: check PQisbusy?
+  try
+    FDB:=Connection.FDB;
+    SendQuery(FDB,UTF8Encode(SQL),Values);
+    //PQsetSingleRowMode(QueryDbConLive); //TODO!!
+    FTuple:=0;
+    FRecordSet:=PQgetResult(FDB);
+    if FRecordSet.Handle=nil then
+      e:=PQerrorMessage(FDB)
+    else
+      e:=PQresultErrorMessage(FRecordSet);
+    if e<>'' then
+      raise EPostgres.Create(UTF8ToWideString(e));
+    FFirstRead:=true;
+  finally
+    r:=PQgetResult(FDB);
+    while r.Handle<>nil do
+     begin
+      PQclear(r);
+      r:=PQgetResult(FDB);
+     end;
+  end;
 end;
 
 destructor TPostgresCommand.Destroy;
@@ -713,7 +787,7 @@ end;
 
 function TPostgresCommand.IsEof: boolean;
 begin
-  Result:=(FRecordSet.Handle=nil) or (PQntuples(FRecordSet)=0);
+  Result:=(FRecordSet.Handle=nil) or (PQntuples(FRecordSet)=FTuple);
 end;
 
 function TPostgresCommand.GetCount: integer;
