@@ -5,6 +5,9 @@ unit LibPQ;
 
   https://github.com/stijnsanders/DataLank
 
+  based on PostgreSQL 9.5
+  include/libpq-fe.h
+
 }
 
 interface

@@ -40,8 +40,9 @@ type
 
     function Execute(const SQL: WideString;
       const Values: array of Variant): integer;
-    function Insert(const TableName: WideString;
-      const Values: array of Variant): integer;
+    function Insert(const TableName: WideString; const Values: array of OleVariant;
+      const PKFieldName: WideString=''): int64;
+    procedure Update(const TableName: WideString; const Values:array of OleVariant);
 
     procedure BeginTrans;
     procedure CommitTrans;
