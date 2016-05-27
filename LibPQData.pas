@@ -42,9 +42,9 @@ type
     procedure RollbackTrans;
     function Execute(const SQL: WideString;
       const Values: array of OleVariant): integer;
-    function Insert(const TableName: WideString;
-      const Values: array of OleVariant;
-      const PKFieldName:string=''): integer;
+    function Insert(const TableName: UTF8String; const Values: array of OleVariant;
+      const PKFieldName: UTF8String=''): int64;
+    procedure Update(const TableName: UTF8String; const Values:array of OleVariant);
   end;
 
   TPostgresCommand=class(TObject)
@@ -124,7 +124,7 @@ var
   rds:PChar;
   d:TDateTime;
 const
-  NullStr:AnsiString=#0;  
+  NullStr:AnsiString=#0;
 begin
   rds:=@{$IFDEF DELPHIXE_UP}FormatSettings.{$ENDIF}DecimalSeparator;
   Result:=true;//default
@@ -478,8 +478,8 @@ begin
   end;
 end;
 
-function TPostgresConnection.Insert(const TableName: WideString;
-  const Values: array of OleVariant; const PKFieldName:string=''): integer;
+function TPostgresConnection.Insert(const TableName: UTF8String;
+  const Values: array of OleVariant; const PKFieldName: UTF8String=''): int64;
 var
   r:PGResult;
   i,l:integer;
@@ -505,6 +505,7 @@ begin
   SetLength(pf,pn);
   pn:=0;//re-count, see below
   i:=1;
+
   while i<l do
    begin
     if not VarIsNull(Values[i]) then
@@ -540,8 +541,73 @@ begin
     raise EPostgres.Create(UTF8ToWideString(e));
 
   e:=PQgetvalue(r,0,0);
-  if e='' then Result:=-1 else Result:=StrToInt(string(e));
-  PQclear(r);
+  if e='' then Result:=-1 else Result:=StrToInt64(string(e));
+
+  while r.Handle<>nil do
+   begin
+    PQclear(r);
+    r:=PQgetResult(FDB);
+   end;
+end;
+
+procedure TPostgresConnection.Update(const TableName: UTF8String; const Values: array of OleVariant);
+var
+  r:PGResult;
+  i,l:integer;
+  pn:integer;
+  pt:array of Oid;
+  ps:array of UTF8String;
+  pv:array of pointer;
+  pl:array of integer;
+  pf:array of integer;
+  sql1,sql2,e:UTF8String;
+begin
+  sql1:='';
+  sql2:='';
+  l:=Length(Values);
+  if (l and 1)<>0 then
+    raise EQueryResultError.Create('Update('''+string(TableName)+''') requires an even number of values');
+
+  pn:=l div 2;
+  SetLength(pt,pn);
+  SetLength(ps,pn);
+  SetLength(pv,pn);
+  SetLength(pl,pn);
+  SetLength(pf,pn);
+  pn:=0;//re-count, see below
+  i:=1;
+  while i<l do
+   begin
+    if not VarIsNull(Values[i]) then
+     begin
+      inc(pn);
+      if pn=1 then
+        sql2:=' where '+UTF8Encode(VarToWideStr(Values[i-1]))+'=$1'//'+IntToStr(i)
+      else
+        sql1:=sql1+','+UTF8Encode(VarToWideStr(Values[i-1]))+'=$'+AnsiString(IntToStr(i));
+      if not AddParam(Values[i],pt[pn],ps[pn],pv[pn],pl[pn],pf[pn]) then
+        raise Exception.Create('Unsupported Parameter Type: TableName="'+string(TableName)+'" #'+IntToStr((i div 2)+1));
+     end;
+    inc(i,2);
+   end;
+
+  sql1[1]:=' ';
+  sql1:='update '+TableName+' set'+sql1+sql2;
+  if PQsendQueryParams(FDB,@sql1[1],pn,@pt[0],@pv[0],@pl[0],@pf[0],0)=0 then
+    raise EPostgres.Create(UTF8ToWideString(PQerrorMessage(FDB)));
+
+  r:=PQgetResult(FDB);
+  if r.Handle=nil then
+    e:=PQerrorMessage(FDB)
+  else
+    e:=PQresultErrorMessage(r);
+  if e<>'' then
+    raise EPostgres.Create(UTF8ToWideString(e));
+  while r.Handle<>nil do
+   begin
+    PQclear(r);
+    r:=PQgetResult(FDB);
+   end;
 end;
 
 { TPostgresCommand }
