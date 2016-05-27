@@ -580,13 +580,13 @@ begin
    begin
     if not VarIsNull(Values[i]) then
      begin
+      if not AddParam(Values[i],pt[pn],ps[pn],pv[pn],pl[pn],pf[pn]) then
+        raise Exception.Create('Unsupported Parameter Type: TableName="'+string(TableName)+'" #'+IntToStr((i div 2)+1));
       inc(pn);
       if pn=1 then
         sql2:=' where '+UTF8Encode(VarToWideStr(Values[i-1]))+'=$1'//'+IntToStr(i)
       else
-        sql1:=sql1+','+UTF8Encode(VarToWideStr(Values[i-1]))+'=$'+AnsiString(IntToStr(i));
-      if not AddParam(Values[i],pt[pn],ps[pn],pv[pn],pl[pn],pf[pn]) then
-        raise Exception.Create('Unsupported Parameter Type: TableName="'+string(TableName)+'" #'+IntToStr((i div 2)+1));
+        sql1:=sql1+','+UTF8Encode(VarToWideStr(Values[i-1]))+'=$'+AnsiString(IntToStr(pn));
      end;
     inc(i,2);
    end;
