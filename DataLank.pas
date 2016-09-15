@@ -28,11 +28,19 @@ type
   TQueryResult = TSQLiteStatement;
 }
 
+{
 uses LibPQData;
 
 type
   TDataConnection = TPostgresConnection;
   TQueryResult = TPostgresCommand;
+}
+
+uses MyData;
+
+type
+  TDataConnection = TMySQLConnection;
+  TQueryResult = TMySQLStatement;
 
 implementation
 
