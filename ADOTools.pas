@@ -22,8 +22,9 @@ type
       const Values: array of Variant): Variant;
     function Execute(const SQL: WideString;
       const Values: array of Variant): integer;
-    function Insert(const TableName: WideString;
-      const Values: array of Variant): integer;
+    function Insert(const TableName: WideString; const Values: array of OleVariant;
+      const PKFieldName: WideString=''): int64;
+    procedure Update(const TableName: WideString; const Values:array of OleVariant);
   end;
 
   TADOResult=class(TObject)
@@ -228,7 +229,7 @@ end;
 
 function TADOResult.Read: boolean;
 begin
-  if FRecordSet.EOF then Result:=false else
+  if (FRecordSet=nil) or FRecordSet.EOF then Result:=false else
    begin
     if FFirstRead then FFirstRead:=false else FRecordSet.MoveNext;
     Result:=not(FRecordSet.EOF);
@@ -239,7 +240,8 @@ procedure TADOResult.CheckResultSet;
 var
   v:OleVariant;
 begin
-  while (FRecordSet<>nil) and (FRecordSet.State=adStateClosed) do FRecordSet:=FRecordSet.NextRecordset(v);
+  while (FRecordSet<>nil) and (FRecordSet.State=adStateClosed) do
+    FRecordSet:=FRecordSet.NextRecordset(v);
   FFirstRead:=true;
 end;
 
@@ -316,7 +318,7 @@ begin
 end;
 
 function TADOLink.Insert(const TableName: WideString;
-  const Values: array of Variant): integer;
+  const Values: array of Variant; const PKFieldName: WideString=''): integer;
 var
   rs:Recordset;
   i,l:integer;
@@ -338,9 +340,53 @@ begin
   for i:=0 to (l div 2)-1 do
     rs.Fields[Values[i*2]].Value:=Values[i*2+1];
 
-  Result:=rs.Fields[0].Value;//assert primary key
+  if PKFieldName='' then
+    Result:=rs.Fields[0].Value //assert primary key
+  else
+    Result:=rs.Fields[PKFieldName].Value;
   rs.Update(EmptyParam,EmptyParam);
   rs:=nil;
+end;
+
+procedure TADOLink.Update(const TableName: WideString;
+  const Values: array of OleVariant);
+var
+  cmd:Command;
+  rs:Recordset;
+  i,l:integer;
+  v:OleVariant;
+  vt:TVarType;
+begin
+  l:=Length(Values);
+  if (l mod 2)<>0 then
+    raise Exception.Create('TADOLink.Insert expects pairs of name-value');
+
+  cmd:=CoCommand.Create;
+  cmd.CommandType:=adCmdText;
+  cmd.CommandText:='SELECT * FROM ['+TableName+'] WHERE ['+VarToStr(Values[0])+']=?';
+  cmd.Set_ActiveConnection(FConnection);
+  vt:=VarType(Values[1]);
+  if (vt=varNull) or (vt=varString) or (vt=varOleStr) then
+    cmd.Parameters.Append(cmd.CreateParameter('',adVariant,adParamInput,0,Values[1]))
+  else
+    cmd.Parameters.Append(cmd.CreateParameter('',vt,adParamInput,0,Values[1]));
+
+
+  rs:=CoRecordset.Create;
+  //TODO: adCmdTable and find PK? first col?
+  rs.Open(
+    cmd,
+    FConnection,
+    adOpenKeyset,//?
+    adLockOptimistic,//adLockPessimistic?
+    adCmdUnspecified);
+
+  for i:=2 to (l div 2)-1 do
+    rs.Fields[Values[i*2]].Value:=Values[i*2+1];
+
+  rs.Update(EmptyParam,EmptyParam);
+  rs:=nil;
+  cmd:=nil;
 end;
 
 end.
