@@ -25,6 +25,7 @@ type
     function Insert(const TableName: WideString; const Values: array of OleVariant;
       const PKFieldName: WideString=''): int64;
     procedure Update(const TableName: WideString; const Values:array of OleVariant);
+    property Connection:Connection read FConnection;
   end;
 
   TADOResult=class(TObject)
@@ -256,7 +257,11 @@ end;
 
 destructor TADOLink.Destroy;
 begin
-  FConnection.Close;
+  try
+    if FConnection<>nil then FConnection.Close;
+  except
+    //ignore
+  end;
   FConnection:=nil;
   inherited;
 end;
@@ -318,7 +323,7 @@ begin
 end;
 
 function TADOLink.Insert(const TableName: WideString;
-  const Values: array of Variant; const PKFieldName: WideString=''): integer;
+  const Values: array of OleVariant; const PKFieldName: WideString=''): int64;
 var
   rs:Recordset;
   i,l:integer;
