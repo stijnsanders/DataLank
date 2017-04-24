@@ -45,11 +45,11 @@ type
     function Read:boolean;
     property Fields[Idx:OleVariant]:OleVariant read GetValue; default;
     property EOF: boolean read IsEof;
-    function GetInt(Idx:OleVariant):integer;
-    function GetStr(Idx:OleVariant):WideString;
-    function GetDate(Idx:OleVariant):TDateTime;
-    function IsNull(Idx:OleVariant):boolean;
-    function GetDefault(Idx,Default:OleVariant):OleVariant;
+    function GetInt(const Idx:OleVariant):integer;
+    function GetStr(const Idx:OleVariant):WideString;
+    function GetDate(const Idx:OleVariant):TDateTime;
+    function IsNull(const Idx:OleVariant):boolean;
+    function GetDefault(const Idx,Default:OleVariant):OleVariant;
   end;
 
   EFieldNotFound=class(Exception);
@@ -136,7 +136,7 @@ begin
   FRecordSet.MoveFirst;
 end;
 
-function TADOResult.GetInt(Idx: OleVariant): integer;
+function TADOResult.GetInt(const Idx: OleVariant): integer;
 var
   v:OleVariant;
 begin
@@ -146,14 +146,17 @@ begin
   except
     on e:EOleException do
       if cardinal(e.ErrorCode)=$800A0CC1 then
-        raise EFieldNotFound.Create('GetInt: Field not found: '+VarToStr(Idx));
+        raise EFieldNotFound.Create('GetInt: Field not found: '+VarToStr(Idx))
       else
+       begin
+        //if cardinal(e.ErrorCode)=$80004005 then Connection.Close;
         raise;
+       end;
   end;
   if VarIsNull(v) then Result:=0 else Result:=v;
 end;
 
-function TADOResult.GetStr(Idx: OleVariant): WideString;
+function TADOResult.GetStr(const Idx: OleVariant): WideString;
 begin
   try
     //Result:=VarToWideStr(FRecordSet.Fields[Idx].Value);
@@ -161,13 +164,16 @@ begin
   except
     on e:EOleException do
       if cardinal(e.ErrorCode)=$800A0CC1 then
-        raise EFieldNotFound.Create('GetStr: Field not found: '+VarToStr(Idx));
+        raise EFieldNotFound.Create('GetStr: Field not found: '+VarToStr(Idx))
       else
+       begin
+        //if cardinal(e.ErrorCode)=$80004005 then Connection.Close;
         raise;
+       end;
   end;
 end;
 
-function TADOResult.GetDate(Idx: OleVariant): TDateTime;
+function TADOResult.GetDate(const Idx: OleVariant): TDateTime;
 var
   v:OleVariant;
 begin
@@ -177,9 +183,12 @@ begin
   except
     on e:EOleException do
       if cardinal(e.ErrorCode)=$800A0CC1 then
-        raise EFieldNotFound.Create('GetDate: Field not found: '+VarToStr(Idx));
+        raise EFieldNotFound.Create('GetDate: Field not found: '+VarToStr(Idx))
       else
+       begin
+        //if cardinal(e.ErrorCode)=$80004005 then Connection.Close;
         raise;
+       end;
   end;
   if VarIsNull(v) then
     Result:=0 //Now?
@@ -195,18 +204,21 @@ begin
   except
     on e:EOleException do
       if cardinal(e.ErrorCode)=$800A0CC1 then
-        raise EFieldNotFound.Create('Field not found: '+VarToStr(Idx));
+        raise EFieldNotFound.Create('Field not found: '+VarToStr(Idx))
       else
+       begin
+        //if cardinal(e.ErrorCode)=$80004005 then Connection.Close;
         raise;
+       end;
   end;
 end;
 
-function TADOResult.GetDefault(Idx,Default: OleVariant): OleVariant;
+function TADOResult.GetDefault(const Idx,Default: OleVariant): OleVariant;
 begin
   if FRecordSet.EOF then Result:=Default else Result:=GetValue(Idx);
 end;
 
-function TADOResult.IsNull(Idx: OleVariant): boolean;
+function TADOResult.IsNull(const Idx: OleVariant): boolean;
 begin
   try
     //Result:=VarIsNull(FRecordSet.Fields[Idx].Value);
@@ -217,7 +229,10 @@ begin
       if cardinal(e.ErrorCode)=$800A0CC1 then
         raise EFieldNotFound.Create('IsNull: Field not found: '+VarToStr(Idx))
       else
+       begin
+        //if cardinal(e.ErrorCode)=$80004005 then Connection.Close;
         raise;
+       end;
       Result:=true;//counter warning
      end;
   end;
@@ -359,7 +374,6 @@ var
   cmd:Command;
   rs:Recordset;
   i,l:integer;
-  v:OleVariant;
   vt:TVarType;
 begin
   l:=Length(Values);
@@ -384,7 +398,7 @@ begin
     FConnection,
     adOpenKeyset,//?
     adLockOptimistic,//adLockPessimistic?
-    adCmdUnspecified);
+    integer(adCmdUnspecified));
 
   for i:=2 to (l div 2)-1 do
     rs.Fields[Values[i*2]].Value:=Values[i*2+1];

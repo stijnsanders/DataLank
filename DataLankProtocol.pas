@@ -40,9 +40,9 @@ type
 
     function Execute(const SQL: WideString;
       const Values: array of Variant): integer;
-    function Insert(const TableName: WideString; const Values: array of OleVariant;
+    function Insert(const TableName: WideString; const Values: array of Variant;
       const PKFieldName: WideString=''): int64;
-    procedure Update(const TableName: WideString; const Values:array of OleVariant);
+    procedure Update(const TableName: WideString; const Values:array of Variant);
 
     procedure BeginTrans;
     procedure CommitTrans;
@@ -52,19 +52,19 @@ type
   TQueryResult=class(TObject)
   private
     FFirstLoad:boolean;
-    function GetValue(Idx:OleVariant):OleVariant;
+    function GetValue(const Idx:Variant):Variant;
     function IsEof:boolean;
   public
     constructor Create(Connection: TDataConnection; const SQL: WideString;
       const Values: array of Variant);
     destructor Destroy; override;
     function Read:boolean;
-    property Fields[Idx:OleVariant]:OleVariant read GetValue; default;
+    property Fields[Idx:Variant]:Variant read GetValue; default;
     property EOF: boolean read IsEof;
-    function GetInt(Idx:OleVariant):integer;
-    function GetStr(Idx:OleVariant):WideString;
-    function GetDate(Idx:OleVariant):TDateTime;
-    function IsNull(Idx:OleVariant):boolean;
+    function GetInt(const Idx:Variant):integer;
+    function GetStr(const Idx:Variant):WideString;
+    function GetDate(const Idx:Variant):TDateTime;
+    function IsNull(const Idx:Variant):boolean;
   end;
 
 implementation
@@ -131,27 +131,27 @@ begin
   inherited;
 end;
 
-function TQueryResult.GetInt(Idx: OleVariant): integer;
+function TQueryResult.GetValue(const Idx: Variant): Variant;
 begin
   //Result:=
 end;
 
-function TQueryResult.GetStr(Idx: OleVariant): WideString;
+function TQueryResult.GetInt(const Idx: Variant): integer;
 begin
   //Result:=
 end;
 
-function TQueryResult.GetDate(Idx: OleVariant): TDateTime;
+function TQueryResult.GetStr(const Idx: Variant): WideString;
+begin
+  //Result:=
+end;
+
+function TQueryResult.GetDate(const Idx: Variant): TDateTime;
 begin
   //Result:=VarToDateTime(
 end;
 
-function TQueryResult.GetValue(Idx: OleVariant): OleVariant;
-begin
-  //Result:=
-end;
-
-function TQueryResult.IsNull(Idx: OleVariant): boolean;
+function TQueryResult.IsNull(const Idx: Variant): boolean;
 begin
   //Result:=VarIsNull(
 end;

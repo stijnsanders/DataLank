@@ -18,8 +18,8 @@ They are provided with the Windows MySQL/MariaDB server install.
 interface
 
 //debugging: prevent step-into from debugging TQueryResult calls:
-{xxx$D-}
-{xxx$L-}
+{$D-}
+{$L-}
 
 uses SysUtils, LibMy;
 
@@ -37,12 +37,12 @@ type
     procedure CommitTrans;
     procedure RollbackTrans;
     function Execute(const SQL: WideString;
-      const Values: array of OleVariant): integer;
+      const Values: array of Variant): integer;
     function Insert(const TableName: WideString;
-      const Values: array of OleVariant;
+      const Values: array of Variant;
       const PKFieldName:string=''): integer;
     procedure Update(const TableName: WideString;
-      const Values:array of OleVariant);
+      const Values:array of Variant);
     property Handle:PMYSQL read FDB;
   end;
 
@@ -50,8 +50,8 @@ type
   private
     FFirstRead,FFieldNamesListed:boolean;
     FFieldNames:array of string;
-    function FieldIdx(const Idx:OleVariant):integer;
-    function GetValue(const Idx:OleVariant):OleVariant;
+    function FieldIdx(const Idx:Variant):integer;
+    function GetValue(const Idx:Variant):Variant;
     function IsEof:boolean;
     function GetCount:integer;
   protected
@@ -60,18 +60,18 @@ type
     FResultRow:MYSQL_ROW;
   public
     constructor Create(Connection: TMySQLConnection; const SQL: WideString;
-      const Values: array of OleVariant);
+      const Values: array of Variant);
     destructor Destroy; override;
     procedure Reset;
     procedure NextResults;
     function Read:boolean;
-    property Fields[const Idx:OleVariant]:OleVariant read GetValue; default;
+    property Fields[const Idx:Variant]:Variant read GetValue; default;
     property EOF: boolean read IsEof;
     property Count: integer read GetCount;
-    function GetInt(const Idx:OleVariant):integer;
-    function GetStr(const Idx:OleVariant):WideString;
-    function GetDate(const Idx:OleVariant):TDateTime;
-    function IsNull(const Idx:OleVariant):boolean;
+    function GetInt(const Idx:Variant):integer;
+    function GetStr(const Idx:Variant):WideString;
+    function GetDate(const Idx:Variant):TDateTime;
+    function IsNull(const Idx:Variant):boolean;
   end;
 
   EMyDataError=class(Exception);
@@ -189,7 +189,7 @@ begin
   Exec('rollback');
 end;
 
-function VarToSQL(const Value:OleVariant):UTF8String;
+function VarToSQL(const Value:Variant):UTF8String;
 begin
   case VarType(Value) of
     varNull,varEmpty:
@@ -200,7 +200,7 @@ begin
     varDate:
       Result:=AnsiString(FormatDateTime('"{ts ''"yyyy-mm-dd hh:nn:ss.zzz"''}"',
         VarToDateTime(Value)));
-    varOleStr:
+    varString,varOleStr:
       Result:=''''+UTF8Encode(StringReplace(
         VarToStr(Value),'''','\''',[rfReplaceAll]))+'''';//TODO: mysql_real_escape_string
     varBoolean:
@@ -209,7 +209,7 @@ begin
   end;
 end;
 
-function ParamBind(SQL:UTF8String;const Values:array of OleVariant):UTF8String;
+function ParamBind(SQL:UTF8String;const Values:array of Variant):UTF8String;
 var
   i,j,k,l,n:integer;
 begin
@@ -237,7 +237,7 @@ begin
 end;
 
 function TMySQLConnection.Execute(const SQL: WideString;
-  const Values: array of OleVariant): integer;
+  const Values: array of Variant): integer;
 var
   r:PMYSQL_RES;
   s:UTF8String;
@@ -255,7 +255,7 @@ begin
 end;
 
 function TMySQLConnection.Insert(const TableName: WideString;
-  const Values: array of OleVariant; const PKFieldName:string=''): integer;
+  const Values: array of Variant; const PKFieldName:string=''): integer;
 var
   i,l:integer;
   sql1,sql2:UTF8String;
@@ -295,7 +295,7 @@ begin
 end;
 
 procedure TMySQLConnection.Update(const TableName: WideString;
-  const Values: array of OleVariant);
+  const Values: array of Variant);
 var
   i,l:integer;
   sql:UTF8String;
@@ -332,7 +332,7 @@ end;
 { TMySQLStatement }
 
 constructor TMySQLStatement.Create(Connection: TMySQLConnection;
-  const SQL: WideString; const Values: array of OleVariant);
+  const SQL: WideString; const Values: array of Variant);
 var
   s:UTF8String;
 begin
@@ -372,7 +372,7 @@ begin
   mysql_row_seek(FResultSet,nil);
 end;
 
-function TMySQLStatement.FieldIdx(const Idx: OleVariant): integer;
+function TMySQLStatement.FieldIdx(const Idx: Variant): integer;
 var
   i:integer;
   f:PMYSQL_FIELD;
@@ -411,7 +411,7 @@ begin
     raise EQueryResultError.Create('GetInt: Field not found: '+VarToStr(Idx));
 end;
 
-function TMySQLStatement.GetInt(const Idx: OleVariant): integer;
+function TMySQLStatement.GetInt(const Idx: Variant): integer;
 var
   p:PAnsiChar;
 begin
@@ -419,12 +419,12 @@ begin
   if p=nil then Result:=0 else Result:=StrToInt(p);
 end;
 
-function TMySQLStatement.GetStr(const Idx: OleVariant): WideString;
+function TMySQLStatement.GetStr(const Idx: Variant): WideString;
 begin
   Result:=UTF8ToWideString(FResultRow[FieldIdx(Idx)]);
 end;
 
-function TMySQLStatement.GetDate(const Idx: OleVariant): TDateTime;
+function TMySQLStatement.GetDate(const Idx: Variant): TDateTime;
 var
   i,l,f:integer;
   dy,dm,dd,th,tm,ts,tz:word;
@@ -474,7 +474,7 @@ begin
    end;
 end;
 
-function TMySQLStatement.GetValue(const Idx: OleVariant): OleVariant;
+function TMySQLStatement.GetValue(const Idx: Variant): Variant;
 var
   i:integer;
   p:PAnsiChar;
@@ -542,7 +542,7 @@ begin
   end;
 end;
 
-function TMySQLStatement.IsNull(const Idx: OleVariant): boolean;
+function TMySQLStatement.IsNull(const Idx: Variant): boolean;
 begin
   Result:=FResultRow[FieldIdx(Idx)]=nil;
 end;

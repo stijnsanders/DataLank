@@ -41,16 +41,16 @@ type
     procedure CommitTrans;
     procedure RollbackTrans;
     function Execute(const SQL: WideString;
-      const Values: array of OleVariant): integer;
-    function Insert(const TableName: UTF8String; const Values: array of OleVariant;
+      const Values: array of Variant): integer;
+    function Insert(const TableName: UTF8String; const Values: array of Variant;
       const PKFieldName: UTF8String=''): int64;
-    procedure Update(const TableName: UTF8String; const Values:array of OleVariant);
+    procedure Update(const TableName: UTF8String; const Values:array of Variant);
   end;
 
   TPostgresCommand=class(TObject)
   private
     FFirstRead:boolean;
-    function GetValue(Idx:OleVariant):OleVariant;
+    function GetValue(Idx:Variant):Variant;
     function IsEof:boolean;
     function GetCount:integer;
   protected
@@ -59,23 +59,23 @@ type
     FTuple:integer;
   public
     constructor Create(Connection: TPostgresConnection; const SQL: WideString;
-      const Values: array of OleVariant);
+      const Values: array of Variant);
     destructor Destroy; override;
     procedure Reset;
     function Read:boolean;
-    property Fields[Idx:OleVariant]:OleVariant read GetValue; default;
+    property Fields[Idx:Variant]:Variant read GetValue; default;
     property EOF: boolean read IsEof;
     property Count: integer read GetCount;
-    function GetInt(Idx:OleVariant):integer;
-    function GetStr(Idx:OleVariant):WideString;
-    function GetDate(Idx:OleVariant):TDateTime;
-    function IsNull(Idx:OleVariant):boolean;
+    function GetInt(const Idx:Variant):integer;
+    function GetStr(const Idx:Variant):WideString;
+    function GetDate(const Idx:Variant):TDateTime;
+    function IsNull(const Idx:Variant):boolean;
   end;
 
   EPostgres=class(Exception);
   EQueryResultError=class(Exception);
 
-function RefCursor(const CursorName:WideString):OleVariant;
+function RefCursor(const CursorName:WideString):Variant;
 
 implementation
 
@@ -105,9 +105,9 @@ const
   Oid_uuid = 2950; //UUID datatype
 
 var
-  RefCursorCatch:OleVariant;//see initialization
+  RefCursorCatch:Variant;//see initialization
 
-function RefCursor(const CursorName:WideString):OleVariant;
+function RefCursor(const CursorName:WideString):Variant;
 begin
   //assert: caller does transaction!
   //package a bespoke array with a reference to secret fixed thing,
@@ -117,7 +117,7 @@ begin
   Result[1]:=CursorName;
 end;
 
-function AddParam(const v: OleVariant; var vt: Oid; var vs: UTF8String;
+function AddParam(const v: Variant; var vt: Oid; var vs: UTF8String;
   var vv: pointer; var vl: integer; var vf: integer): boolean;
 var
   ods:Char;
@@ -337,7 +337,7 @@ begin
 end;
 
 procedure SendQuery(DB: PGConn; const SQL: UTF8String;
-  const Values: array of OleVariant);
+  const Values: array of Variant);
 var
   i:integer;
   pn:integer;
@@ -430,7 +430,7 @@ begin
 end;
 
 function TPostgresConnection.Execute(const SQL: WideString;
-  const Values: array of OleVariant): integer;
+  const Values: array of Variant): integer;
 var
   r:PGResult;
   s,e:UTF8String;
@@ -479,7 +479,7 @@ begin
 end;
 
 function TPostgresConnection.Insert(const TableName: UTF8String;
-  const Values: array of OleVariant; const PKFieldName: UTF8String=''): int64;
+  const Values: array of Variant; const PKFieldName: UTF8String=''): int64;
 var
   r:PGResult;
   i,l:integer;
@@ -550,7 +550,7 @@ begin
    end;
 end;
 
-procedure TPostgresConnection.Update(const TableName: UTF8String; const Values: array of OleVariant);
+procedure TPostgresConnection.Update(const TableName: UTF8String; const Values: array of Variant);
 var
   r:PGResult;
   i,l:integer;
@@ -613,7 +613,7 @@ end;
 { TPostgresCommand }
 
 constructor TPostgresCommand.Create(Connection: TPostgresConnection;
-  const SQL: WideString; const Values: array of OleVariant);
+  const SQL: WideString; const Values: array of Variant);
 var
   e:UTF8String;
   r:PGResult;
@@ -678,7 +678,7 @@ begin
   if FTuple<>0 then FTuple:=0;
 end;
 
-function TPostgresCommand.GetInt(Idx: OleVariant): integer;
+function TPostgresCommand.GetInt(const Idx: Variant): integer;
 var
   i:integer;
   s:UTF8String;
@@ -696,7 +696,7 @@ begin
     Result:=0;//?
 end;
 
-function TPostgresCommand.GetStr(Idx: OleVariant): WideString;
+function TPostgresCommand.GetStr(const Idx: Variant): WideString;
 var
   i:integer;
   s:UTF8String;
@@ -714,7 +714,7 @@ begin
     Result:='';//?
 end;
 
-function TPostgresCommand.GetDate(Idx: OleVariant): TDateTime;
+function TPostgresCommand.GetDate(const Idx: Variant): TDateTime;
 var
   i,l,f:integer;
   dy,dm,dd,th,tm,ts,tz:word;
@@ -771,7 +771,7 @@ begin
     Result:=0;//Now?
 end;
 
-function TPostgresCommand.GetValue(Idx: OleVariant): OleVariant;
+function TPostgresCommand.GetValue(Idx: Variant): Variant;
 var
   i:integer;
   s:UTF8String;
@@ -841,7 +841,7 @@ begin
     Result:=Null;
 end;
 
-function TPostgresCommand.IsNull(Idx: OleVariant): boolean;
+function TPostgresCommand.IsNull(const Idx: Variant): boolean;
 var
   i:integer;
   s:UTF8String;
