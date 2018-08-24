@@ -528,7 +528,7 @@ begin
   else
     sql2:=sql2+') returning '+PKFieldName;
 
-  sql1:='insert into '+TableName+' '+sql1+') values '+sql2;
+  sql1:='insert into "'+TableName+'" '+sql1+') values '+sql2;
   if PQsendQueryParams(FDB,@sql1[1],pn,@pt[0],@pv[0],@pl[0],@pf[0],0)=0 then
     raise EPostgres.Create(UTF8ToWideString(PQerrorMessage(FDB)));
 
@@ -592,7 +592,7 @@ begin
    end;
 
   sql1[1]:=' ';
-  sql1:='update '+TableName+' set'+sql1+sql2;
+  sql1:='update "'+TableName+'" set'+sql1+sql2;
   if PQsendQueryParams(FDB,@sql1[1],pn,@pt[0],@pv[0],@pl[0],@pf[0],0)=0 then
     raise EPostgres.Create(UTF8ToWideString(PQerrorMessage(FDB)));
 
