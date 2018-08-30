@@ -69,6 +69,7 @@ type
     function GetInt(const Idx:Variant):integer;
     function GetStr(const Idx:Variant):WideString;
     function GetDate(const Idx:Variant):TDateTime;
+    function GetInterval(const Idx:Variant):TDateTime;
     function IsNull(const Idx:Variant):boolean;
   end;
 
@@ -100,6 +101,7 @@ const
   Oid_time = 1083; //time of day
   Oid_timestamp = 1114; //date and time
   Oid_timestamptz = 1184; //date and time with time zone
+  Oid_interval = 1186;
   Oid_numeric = 1700; //numeric(precision, decimal), arbitrary precision number
   Oid_refcursor = 1790; //reference to cursor (portal name)
   Oid_uuid = 2950; //UUID datatype
@@ -222,7 +224,7 @@ begin
        end;
       vf:=0;
      end;
-    varOleStr,varString:
+    varOleStr,varString,varUString:
      begin
       vt:=Oid_varchar;//?Oid_text?
       vs:=UTF8Encode(VarToWideStr(v));
@@ -289,7 +291,7 @@ end;
 
 function PrepSQL(const SQL: UTF8String): PAnsiChar;
 var
-  s:string;
+  s:UTF8String;
   i,j,k,l:integer;
 begin
 {$IFDEF LIBPQDATA_TRANSFORMQM}
@@ -771,6 +773,77 @@ begin
     Result:=0;//Now?
 end;
 
+function TPostgresCommand.GetInterval(const Idx: Variant): TDateTime;
+var
+  i,dd,l,f:integer;
+  th,tm,ts,tz:word;
+  s:UTF8String;
+  function Next:word;
+  begin
+    Result:=0;
+    while (i<=l) and (s[i] in ['0'..'9']) do
+     begin
+      Result:=Result*10+(byte(s[i]) and $F);
+      inc(i);
+     end;
+  end;
+begin
+  if VarIsNumeric(Idx) then i:=Idx else
+   begin
+    s:=AnsiString(VarToStr(Idx));
+    i:=PQfnumber(FRecordSet,@s[1]);
+   end;
+  if i=-1 then
+    raise EQueryResultError.Create('GetDate: Field not found: '+VarToStr(Idx));
+  if PQgetisnull(FRecordSet,FTuple,i)=0 then
+   begin
+    s:=PQgetvalue(FRecordSet,FTuple,i);
+    i:=1;
+    l:=Length(s);
+    dd:=Next;
+    if s[i]=' ' then//' days '
+     begin
+      inc(i);
+      if (i<=l) and (s[i]='d') then inc(i) else i:=l+1;
+      if (i<=l) and (s[i]='a') then inc(i) else i:=l+1;
+      if (i<=l) and (s[i]='y') then inc(i) else i:=l+1;
+      if (i<=l) and (s[i]='s') then inc(i) else i:=l+1;
+      if (i<=l) and (s[i]=' ') then inc(i) else i:=l+1;
+      th:=Next;
+     end
+    else
+     begin
+      th:=dd;
+      dd:=0;
+     end;
+    while th>=24 do
+     begin
+      inc(dd);
+      dec(th,24);
+     end;
+    inc(i);//':';
+    tm:=Next;
+    inc(i);//':'
+    ts:=Next;
+    inc(i);//'.'
+    tz:=0;//Next;//more precision than milliseconds here, encode floating:
+
+    f:=24*60*60;
+    Result:=0.0;
+    while (i<=l) and (s[i] in ['0'..'9']) do
+     begin
+      f:=f*10;
+      Result:=Result+(byte(s[i]) and $F)/f;
+      inc(i);
+     end;
+
+    //assert i>l
+    Result:=dd+EncodeTime(th,tm,ts,tz)+Result;
+   end
+  else
+    Result:=0;
+end;
+
 function TPostgresCommand.GetValue(Idx: Variant): Variant;
 var
   i:integer;
@@ -830,6 +903,7 @@ begin
       //Oid_date
       //Oid_time
       Oid_timestamp:Result:=GetDate(Idx);
+      Oid_interval:Result:=GetInterval(Idx);
       //Oid_timestamptz
       //Oid_uuid
       else
