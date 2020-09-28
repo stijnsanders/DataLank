@@ -302,34 +302,51 @@ begin
   SetLength(s,l*2);
   while (i<=l) do
    begin
-    while (i<=l) and (SQL[i]<>'?') do
+    while (i<=l) and (SQL[i]<>'?') and (SQL[i]<>'''') do
      begin
       s[j]:=SQL[i];
       inc(i);
       inc(j);
      end;
     if i<=l then
-     begin
-      s[j]:='$';
-      inc(i);
-      inc(j);
-      inc(k);
-      if k<10 then
+      if SQL[i]='''' then
        begin
-        s[j]:=AnsiChar(k or $30);
+        s[j]:=SQL[i];//''''
+        inc(i);
+        inc(j);
+        while (i<=l) and (SQL[i]<>'''') do
+         begin
+          s[j]:=SQL[i];
+          inc(i);
+          inc(j);
+         end;
+        s[j]:=SQL[i];//''''
+        inc(i);
         inc(j);
        end
       else
-      if k<100 then
        begin
-        s[j]:=AnsiChar((k div 10) or $30);
+        //SQL[i]='?'
+        s[j]:='$';
+        inc(i);
         inc(j);
-        s[j]:=AnsiChar((k mod 10) or $30);
-        inc(j);
-       end
-      else
-        raise EPostgres.Create('Maximum number of question marks exceeded');
-     end;
+        inc(k);
+        if k<10 then
+         begin
+          s[j]:=AnsiChar(k or $30);
+          inc(j);
+         end
+        else
+        if k<100 then
+         begin
+          s[j]:=AnsiChar((k div 10) or $30);
+          inc(j);
+          s[j]:=AnsiChar((k mod 10) or $30);
+          inc(j);
+         end
+        else
+          raise EPostgres.Create('Maximum number of question marks exceeded');
+       end;
    end;
   SetLength(s,j-1);
   Result:=@s[1];
@@ -640,13 +657,16 @@ begin
     if e<>'' then
       raise EPostgres.Create(UTF8ToWideString(e));
     FFirstRead:=true;
-  finally
+  except
+    if FRecordSet.Handle<>nil then
+      PQclear(FRecordSet);
     r:=PQgetResult(FDB);
     while r.Handle<>nil do
      begin
       PQclear(r);
       r:=PQgetResult(FDB);
      end;
+    raise;
   end;
 end;
 
@@ -690,6 +710,7 @@ var
   i:integer;
   s:UTF8String;
 begin
+  if IsEOF then raise EQueryResultError.Create('Reading past EOF.');
   if VarIsNumeric(Idx) then i:=Idx else
    begin
     s:=UTF8String(VarToStr(Idx));
@@ -708,6 +729,7 @@ var
   i:integer;
   s:UTF8String;
 begin
+  if IsEOF then raise EQueryResultError.Create('Reading past EOF.');
   if VarIsNumeric(Idx) then i:=Idx else
    begin
     s:=UTF8String(VarToStr(Idx));
@@ -736,6 +758,7 @@ var
      end;
   end;
 begin
+  if IsEOF then raise EQueryResultError.Create('Reading past EOF.');
   if VarIsNumeric(Idx) then i:=Idx else
    begin
     s:=UTF8String(VarToStr(Idx));
@@ -793,6 +816,7 @@ var
      end;
   end;
 begin
+  if IsEOF then raise EQueryResultError.Create('Reading past EOF.');
   if VarIsNumeric(Idx) then i:=Idx else
    begin
     s:=UTF8String(VarToStr(Idx));
@@ -856,6 +880,7 @@ var
   ods:char;
   rds:PChar;
 begin
+  if IsEOF then raise EQueryResultError.Create('Reading past EOF.');
   rds:=@{$IF Declared(FormatSettings)}FormatSettings.{$IFEND}DecimalSeparator;
   if VarIsNumeric(Idx) then i:=Idx else
    begin
@@ -925,6 +950,7 @@ var
   i:integer;
   s:UTF8String;
 begin
+  if IsEOF then raise EQueryResultError.Create('Reading past EOF.');
   if VarIsNumeric(Idx) then i:=Idx else
    begin
     s:=UTF8String(VarToStr(Idx));
