@@ -5,7 +5,7 @@ unit LibPQ;
 
   https://github.com/stijnsanders/DataLank
 
-  based on PostgreSQL 9.5
+  based on PostgreSQL 10.7
   include/libpq-fe.h
 
 }
@@ -117,11 +117,10 @@ type
 
   PpgNotify = ^pgNotify;
 
-  PGnotify = record
+  pgNotify = record
     relname: PAnsiChar;
     pe_pid: integer;
     extra: PAnsiChar;
-    next: PpgNotify;
   end;
 
   PQnoticeReceiver = procedure(arg:pointer;res:PGResult); cdecl;
@@ -257,7 +256,7 @@ function PQgetResult(conn: PGconn): PGresult; cdecl;
 function PQisBusy(conn: PGconn): integer; cdecl;
 function PQconsumeInput(conn: PGconn): integer; cdecl;
 
-function PQnotifies(conn: PGconn): PGnotify; cdecl;
+function PQnotifies(conn: PGconn): PpgNotify; cdecl;
 
 function PQputCopyData(conn: PGconn; buffer: PAnsiChar; nbytes: integer): integer; cdecl;
 function PQputCopyEnd(conn: PGconn; errormsg: PAnsiChar): integer; cdecl;
