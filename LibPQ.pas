@@ -121,7 +121,6 @@ type
     relname: PAnsiChar;
     pe_pid: integer;
     extra: PAnsiChar;
-    next: PpgNotify;
   end;
 
   PQnoticeReceiver = procedure(arg:pointer;res:PGResult); cdecl;
