@@ -117,10 +117,11 @@ type
 
   PpgNotify = ^pgNotify;
 
-  pgNotify = record
+  PGnotify = record
     relname: PAnsiChar;
     pe_pid: integer;
     extra: PAnsiChar;
+    next: PpgNotify;
   end;
 
   PQnoticeReceiver = procedure(arg:pointer;res:PGResult); cdecl;
@@ -133,13 +134,15 @@ type
      fieldSep, tableOpt, caption: PAnsiChar;
      fieldName: PPAnsiChar; //PAnsiChar? delimited by #0#0?
   end;
-  PQprintOpt = ^_PQprintOpt;
+  _PQprintOpts = array[0..$FFFF] of _PQprintOpt;
+  PQprintOpt = ^_PQprintOpts;
 
   _PQconninfoOption = record
     keyword, envvar, compiled, val, label_, dispchar: PAnsiChar;
     dispsize: integer;
   end;
-  PQconninfoOption = ^_PQconninfoOption;
+  _PQconninfoOptions = array[0..$FFFF] of _PQconninfoOption;
+  PQconninfoOption = ^_PQconninfoOptions;
 
   _PQArgBlock = record
     len, isint: integer;
@@ -147,7 +150,8 @@ type
       0: (ptr: PInteger);
       1: (integer_: integer);
   end;
-  PQArgBlock = ^_PQArgBlock;
+  _PQArgBlocks = array[0..$FFFF] of _PQArgBlock;
+  PQArgBlock = ^_PQArgBlocks;
 
   _PGresAttDesc = record
     name: PAnsiChar;
@@ -158,7 +162,8 @@ type
     typlen: integer;
     atttypmod: integer;
   end;
-  PGresAttDesc = ^_PGresAttDesc;
+  _PGresAttDescs = array[0..$FFFF] of _PGresAttDesc;
+  PGresAttDesc = ^_PGresAttDescs;
 
 
 function PQconnectStart(conninfo: PAnsiChar): PGconn; cdecl;
@@ -256,7 +261,7 @@ function PQgetResult(conn: PGconn): PGresult; cdecl;
 function PQisBusy(conn: PGconn): integer; cdecl;
 function PQconsumeInput(conn: PGconn): integer; cdecl;
 
-function PQnotifies(conn: PGconn): PpgNotify; cdecl;
+function PQnotifies(conn: PGconn): PGnotify; cdecl;
 
 function PQputCopyData(conn: PGconn; buffer: PAnsiChar; nbytes: integer): integer; cdecl;
 function PQputCopyEnd(conn: PGconn; errormsg: PAnsiChar): integer; cdecl;
