@@ -260,7 +260,7 @@ function PQgetResult(conn: PGconn): PGresult; cdecl;
 function PQisBusy(conn: PGconn): integer; cdecl;
 function PQconsumeInput(conn: PGconn): integer; cdecl;
 
-function PQnotifies(conn: PGconn): PGnotify; cdecl;
+function PQnotifies(conn: PGconn): PpgNotify; cdecl;
 
 function PQputCopyData(conn: PGconn; buffer: PAnsiChar; nbytes: integer): integer; cdecl;
 function PQputCopyEnd(conn: PGconn; errormsg: PAnsiChar): integer; cdecl;
